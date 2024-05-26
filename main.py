@@ -5,7 +5,11 @@ import mysql.connector
 from PIL import Image, ImageTk
 from tkinter import messagebox
 from tkinter import Menu
-
+from PIL import Image, ImageDraw, ImageFont
+from mysql.connector import Error
+import tkinter as tk
+from tkinter import ttk
+from customtkinter import CTk, CTkFrame, CTkToplevel
 
 app = CTk()
 app.title("Panel Control")
@@ -40,8 +44,10 @@ def load_images():
         "ver_pagos": CTkImage(dark_image=Image.open("icons/buscar.png"), size=(50, 50)),
         "recibo": CTkImage(dark_image=Image.open("icons/recibo.png"), size=(50, 50)),
         "configuraciones": CTkImage(dark_image=Image.open("icons/configuraciones.png"), size=(50, 50)),
-        "fondo" : CTkImage(dark_image=Image.open("icons/fondo.png"), size=(250,250)),
-        "usuario" : CTkImage(dark_image=Image.open("icons/usuario.png"), size=(150,150))
+        "fondo" : CTkImage(dark_image=Image.open("icons/fondo.png"), size=(350,350)),
+        "usuario" : CTkImage(dark_image=Image.open("icons/usuario.png"), size=(150,150)),
+        "pago" : CTkImage(dark_image=Image.open("icons/pago.png"), size=(150,150)),
+        "lupa" : CTkImage(dark_image=Image.open("icons/validando-billete.png"), size=(100,100))
     }
     return images
 
@@ -53,6 +59,15 @@ agua_logo_lb = CTkLabel(master=banner, text="", image=images["agua"])
 
 
 #================================================FUNCIONES==================================
+# Configuración de la base de datos
+db_config = {
+    'user': 'dni',
+    'password': 'MinuzaFea265/',
+    'host': 'localhost',
+    'database': 'water'
+}
+
+
 def interfaz():
     crearUsuarioWindow = CTkToplevel(app)
     crearUsuarioWindow.title("Crear Persona")
@@ -76,14 +91,14 @@ def interfaz():
         guardar_datos(nombre, direccion, telefono, email)
 
     def salir():
-        app.destroy()
+        crearUsuarioWindow.destroy()
 
     usuario = CTkLabel(master=frame2, text="", image=imagenes["usuario"])
     usuario.pack()
     fondo = CTkLabel(master=frame1, text="", image=imagenes["fondo"])
     fondo.place(
-        relx=0.7,
-        rely=0.6
+        relx=0.5,
+        rely=0.5
     )
 
     lbName = CTkLabel(
@@ -287,6 +302,280 @@ def interfaz():
     )
 
 
+
+def verPagos():
+    crearUsuarioWindow = CTkToplevel(app)
+    crearUsuarioWindow.title("Ver Pago")
+    crearUsuarioWindow.geometry("1000x600")
+    crearUsuarioWindow.resizable(False, False)
+    
+    imagenes = load_images()
+
+    # Definimos los frames
+    frame1 = CTkFrame(master=crearUsuarioWindow, corner_radius=0, fg_color="black")
+    frame2 = CTkFrame(master=crearUsuarioWindow, corner_radius=0, fg_color=color_azul)
+
+    frame1.place(
+        relx=0.0,
+        rely=0.0,
+        relwidth=0.7,
+        relheight=1.0
+    )
+    frame2.place(
+        relx=0.7,
+        rely=0.0,
+        relwidth=0.3,
+        relheight=1.0
+    )
+
+    # Crear el Treeview en frame1
+    tree = ttk.Treeview(frame1, columns=("id_pago", "id_factura", "fecha_pago", "monto", "metodo_pago"), show='headings')
+    tree.heading("id_pago", text="ID Pago")
+    tree.heading("id_factura", text="ID Factura")
+    tree.heading("fecha_pago", text="Fecha de Pago")
+    tree.heading("monto", text="Monto")
+    tree.heading("metodo_pago", text="Método de Pago")
+    
+    # Ajustar el ancho de las columnas
+    tree.column("id_pago", width=100)
+    tree.column("id_factura", width=100)
+    tree.column("fecha_pago", width=100)
+    tree.column("monto", width=100)
+    tree.column("metodo_pago", width=100)
+
+    tree.pack(fill=tk.BOTH, expand=True)
+
+    # Conectar a la base de datos y obtener los datos
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+        query = "SELECT * FROM pagos"
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        # Insertar los datos en el Treeview
+        for row in rows:
+            tree.insert("", "end", values=(row["id_pago"], row["id_factura"], row["fecha_pago"], row["monto"], row["metodo_pago"]))
+
+        cursor.close()
+        conn.close()
+    except mysql.connector.Error as err:
+        print(f"Error: {err}")
+
+    crearUsuarioWindow.mainloop()
+
+
+
+def crearAgua():
+    crearUsuarioWindow = CTkToplevel(app)
+    crearUsuarioWindow.title("Crear Pago")
+    crearUsuarioWindow.geometry("1000x600")
+    crearUsuarioWindow.resizable(False, False)
+    
+    imagenes = load_images()
+
+    #Definimos los frames
+    frame1 = CTkFrame(master=crearUsuarioWindow, corner_radius=0, fg_color=color_negro)
+    frame2 = CTkFrame(master=crearUsuarioWindow, corner_radius=0, fg_color=color_azul)
+
+    def getDatos():
+        id_factura = entFactura.get()
+        fecha_pago = entFecha.get()
+        monto = entMonto.get()
+        metodo_pago = metodoOpciones.get()
+
+        insertar_pago(id_factura, fecha_pago, monto, metodo_pago)
+        crearRecibo()        
+
+    def salir():
+        crearUsuarioWindow.destroy()
+
+    recibo = CTkLabel(master=frame2, text="", image=imagenes["pago"])
+    recibo.pack()
+    fondo = CTkLabel(master=frame1, text="", image=imagenes["fondo"])
+    fondo.place(
+        relx=0.5,
+        rely=0.5
+    )
+
+    lbFactira = CTkLabel(
+        master=frame1,
+        text="No Factura",
+        text_color=color_blanco,
+        font=subtitulo,
+    )
+    entFactura = CTkEntry(
+        master=frame1,
+        placeholder_text="01012021-0001",
+        width=240,
+        height=20,
+    )
+
+    lbFecha = CTkLabel(
+        master=frame1,
+        text="Fecha",
+        text_color=color_blanco,
+        font=subtitulo
+    )
+    entFecha = CTkEntry(
+        master=frame1,
+        placeholder_text="2024-09-21",
+        width=240,
+        height=20
+    )
+    lbMonto = CTkLabel(
+        master=frame1,
+        text="Monto $",
+        text_color=color_blanco,
+        font=subtitulo
+    )
+    entMonto = CTkEntry(
+        master=frame1,
+        placeholder_text="300.45",
+        width=240,
+        height=20
+    )
+    lbMetodo = CTkLabel(
+        master=frame1,
+        text="Metodo",
+        text_color=color_blanco,
+        font=subtitulo
+        )
+    metodoOpciones = CTkComboBox(
+        master=frame1,
+            values=[
+                "Efectivo",
+                "Tarjeta",
+                "Transferencia"
+            ]    
+            )
+
+    lbNota = CTkLabel(
+        master=frame2,
+        text="Notas",
+        font=("Arial", 15)
+    )
+    nota = CTkTextbox(
+        master=frame2,
+        font=subtitulo,
+        width=240,
+        height=290
+        )
+    
+    btnGuardar = CTkButton(
+        master=frame1,
+        text="Guardar",
+        width=200,
+        height=30,
+        command=getDatos
+    )
+    btnSalir = CTkButton(
+        master=frame1,
+        text="Salir",
+        width=200,
+        height=30,
+        command=salir
+    )
+
+    lbFactira.grid(
+        row=0,
+        column=0,
+        pady=10,
+        padx=10
+    )
+    entFactura.grid(
+        row=0,
+        column=1,
+        padx=10,
+        pady=10
+    )
+    lbFecha.grid(
+        row=0,
+        column=2,
+        padx=10,
+        pady=10
+    )
+    entFecha.grid(
+        row=0,
+        column=3,
+        padx=10,
+        pady=10
+    )
+    lbMonto.grid(
+        row=1,
+        column=0,
+        padx=10,
+        pady=10
+    )
+    entMonto.grid(
+        row=1,
+        column=1,
+        padx=10,
+        pady=10
+    )
+    lbMetodo.grid(
+        row=1,
+        column=2,
+        padx=10,
+        pady=10
+    )
+    metodoOpciones.grid(
+        row=1,
+        column=3,
+        padx=10,
+        pady=10
+    )
+    lbNota.place(
+        relx=0.1,
+        rely=0.4
+    )
+    nota.place(
+        relx=0.1,
+        rely=0.5
+    )
+    btnGuardar.place(
+        relx=0.1,
+        rely=0.9
+    )
+    btnSalir.place(
+        relx=0.6,
+        rely=0.9
+    )
+
+    frame1.place(
+        relx=0.0,
+        rely=0.0,
+        relwidth=0.7,
+        relheight=1.0
+    )
+    frame2.place(
+    relx=0.7,
+    rely=0.0,
+    relwidth=0.3,
+    relheight=1.0
+    )
+
+
+def insertar_pago(id_factura, fecha_pago, monto, metodo_pago):
+    try:
+        db = mysql.connector.connect(
+            host="localhost",
+            user="dni",
+            password="MinuzaFea265/",
+            database="water"
+        )
+        cursor = db.cursor()
+        sql = "INSERT INTO pagos (id_factura, fecha_pago, monto, metodo_pago) VALUES (%s, %s, %s, %s)"
+        val = (id_factura, fecha_pago, monto, metodo_pago)
+        cursor.execute(sql, val)
+        db.commit()
+        cursor.close()
+        db.close()
+        messagebox.showinfo("Éxito", "Datos guardados exitosamente")
+    except mysql.connector.Error as err:
+        messagebox.showerror("Error", f"Error al guardar los datos: {err}")
+
+
 def guardar_datos(nombre, direccion, telefono, email):
     try:
         db = mysql.connector.connect(
@@ -357,6 +646,144 @@ def display_data(frame):
     # Configure Treeview layout
     tree.pack(expand=True, fill='both')
 
+
+def crearRecibo():
+    crearUsuarioWindow = CTkToplevel(app)
+    crearUsuarioWindow.title("Crear Recibo")
+    crearUsuarioWindow.geometry("700x300")
+    crearUsuarioWindow.resizable(False, False)
+
+    imagenes = load_images()
+
+    #Definimos los frames
+    frame1 = CTkFrame(master=crearUsuarioWindow, corner_radius=0, fg_color=color_negro)
+    frame2 = CTkFrame(master=crearUsuarioWindow, corner_radius=0, fg_color=color_azul)
+
+    def generarRecibo():
+        id_factura = entFactura.get() 
+        generar_recibo(id_factura)
+
+    usuario = CTkLabel(master=frame2, text="", image=imagenes["lupa"])
+    fondo = CTkLabel(master=frame1, text="", image=imagenes["fondo"])
+    fondo.place(
+        relx=0.3,
+        rely=0.3
+    )
+
+    btnGenerarPago = CTkButton(
+        master=frame1,
+        text="Crear Pago",
+        width=200,
+        height=20,
+        command=generarRecibo
+    )
+
+    lbIdFactura = CTkLabel(
+        master=frame1,
+        text="ID Factura",
+        text_color=color_blanco,
+        font=subtitulo
+    )
+    entFactura = CTkEntry(
+        master=frame1,
+        placeholder_text="9010294",
+        width=340,
+        height=20
+    )
+    lbIdFactura.grid(
+        row=0,
+        column=0,
+        padx=10,
+        pady=10
+    )
+    entFactura.grid(
+        row=1,
+        column=0,
+        padx=10,
+        pady=10
+    )
+    btnGenerarPago.place(
+        relx=0.1,
+        rely=0.9
+    )
+
+
+    usuario.place(
+        relx=0.3,
+        rely=0.3
+    )
+    frame1.place(
+        relx=0.0,
+        rely=0.0,
+        relwidth=0.7,
+        relheight=1.0
+    )
+    frame2.place(
+    relx=0.7,
+    rely=0.0,
+    relwidth=0.3,
+    relheight=1.0
+    )
+    crearUsuarioWindow.mainloop() 
+
+
+def generar_recibo(id_factura):
+    try:
+        conn = mysql.connector.connect(**db_config)
+        cursor = conn.cursor(dictionary=True)
+        query = "SELECT * FROM pagos WHERE id_factura = %s"
+        cursor.execute(query, (id_factura,))
+        pago = cursor.fetchone()
+
+        if pago:
+            # Datos del pago
+            id_pago = pago['id_pago']
+            id_factura = pago['id_factura']
+            fecha_pago = pago['fecha_pago'].strftime('%d-%m-%Y')
+            monto = pago['monto']
+            metodo_pago = pago['metodo_pago']
+
+            # Crear imagen de recibo más grande
+            img = Image.new('RGB', (600, 400), color='white')
+            d = ImageDraw.Draw(img)
+            font = ImageFont.truetype('arial.ttf', 24)
+            font_small = ImageFont.truetype('arial.ttf', 18)
+
+            # Logo (reemplaza 'logo.png' por el nombre de tu archivo de logo)
+            logo = Image.open('icons/agua.png')
+            logo = logo.resize((150, 150))  # Redimensionar el logo si es necesario
+            img.paste(logo, (20, 20))
+
+            # Texto del recibo
+            y_text = 180  # Posición Y inicial para el texto
+            d.text((20, y_text), f"Recibo de Pago", font=font, fill='black')
+            y_text += 40
+            d.text((20, y_text), f"ID Pago: {id_pago}", font=font_small, fill='black')
+            y_text += 30
+            d.text((20, y_text), f"ID Factura: {id_factura}", font=font_small, fill='black')
+            y_text += 30
+            d.text((20, y_text), f"Fecha de Pago: {fecha_pago}", font=font_small, fill='black')
+            y_text += 30
+            d.text((20, y_text), f"Monto: {monto} MX", font=font_small, fill='black')
+            y_text += 30
+            d.text((20, y_text), f"Método de Pago: {metodo_pago}", font=font_small, fill='black')
+
+            # Guardar la imagen como un archivo
+            img.save(f"recibo_{id_factura}.png")
+            print(f"Recibo generado: recibo_{id_factura}.png")
+
+        else:
+            print("No se encontró un pago con ese ID de factura.")
+
+        cursor.close()
+        conn.close()
+
+    except Error as e:
+        print(f"Error al conectar con MySQL: {e}")
+    except IOError as e:
+        print(f"Error al abrir el archivo de logo: {e}")
+
+
 # DEFINIMOS LOS BOTONES DE ACCION DENTRO DEL BANNER
 crear_usuarioBtn = CTkButton(
     master=banner,
@@ -367,19 +794,22 @@ crear_usuarioBtn = CTkButton(
 crear_pago_btn = CTkButton(
     master=banner,
     text="Crear Pago",
-    image=images["metodo_de_pago"]
+    image=images["metodo_de_pago"],
+    command=crearAgua
 )
 
 ver_pago_btn = CTkButton(
     master=banner,
     text="Ver Pagos",
-    image=images["ver_pagos"]
+    image=images["ver_pagos"],
+    command=verPagos
 )
 
 crear_recibo_btn = CTkButton(
     master=banner,
     text="Crear Recibo",
-    image=images["recibo"]
+    image=images["recibo"],
+    command=crearRecibo
 )
 
 configuracion = CTkButton(
